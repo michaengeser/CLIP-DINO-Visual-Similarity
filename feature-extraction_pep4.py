@@ -4,12 +4,16 @@ from transformers import AutoProcessor, CLIPModel, AutoImageProcessor, AutoModel
 import faiss
 import os
 import numpy as np
+import pandas as pd
 
 device = torch.device('cuda' if torch.cuda.is_available() else "cpu")
 
 # Load CLIP model and processor
 processor_clip = AutoProcessor.from_pretrained("openai/clip-vit-base-patch32")
 model_clip = CLIPModel.from_pretrained("openai/clip-vit-base-patch32").to(device)
+
+# initialize table for extracted features 
+feature_table = pd.DataFrame()
 
 # Load DINOv2 model and processor
 # processor_dino = AutoImageProcessor.from_pretrained('facebook/dinov2-base')
@@ -19,7 +23,7 @@ model_clip = CLIPModel.from_pretrained("openai/clip-vit-base-patch32").to(device
 images = []
 for root, dirs, files in os.walk('./own/'):
     for file in files:
-        if file.endswith('jpg'):
+        if file.endswith('png'):
             images.append(root + '/' + file)
 
 
@@ -56,11 +60,20 @@ index_clip = faiss.IndexFlatL2(512)
 
 # Iterate over the dataset to extract features X2 and store features in indexes
 for image_path in images:
-    img = Image.open(image_path).convert('RGB')
+    img = Image.open(image_path).convert('L')
     clip_features = extract_features_clip(img)
+    # store in table
+    filename = os.path.basename(image_path)
+    filename = os.path.splitext(filename)[0]
+    feature_table[filename] = clip_features[0]
+    print('Extracted features for', filename)
+    # add to index
     add_vector_to_index(clip_features, index_clip)
     # dino_features = extract_features_dino(img)
     # add_vector_to_index(dino_features, index_dino)
+
+# Save the DataFrame to a CSV file
+feature_table.to_csv("feature_table.csv", index=False)
 
 # store the indexes locally
 faiss.write_index(index_clip, "clip.index")

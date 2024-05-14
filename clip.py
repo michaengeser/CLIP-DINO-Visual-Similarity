@@ -8,13 +8,13 @@ processor = AutoProcessor.from_pretrained("openai/clip-vit-base-patch32")
 model = CLIPModel.from_pretrained("openai/clip-vit-base-patch32").to(device)
 
 #Extract features from image1
-image1 = Image.open('img1.jpg')
+image1 = Image.open('img1.jpg').convert('L')
 with torch.no_grad():
     inputs1 = processor(images=image1, return_tensors="pt").to(device)
     image_features1 = model.get_image_features(**inputs1)
 
 #Extract features from image2
-image2 = Image.open('img2.jpg')
+image2 = Image.open('img2.jpg').convert('L')
 with torch.no_grad():
     inputs2 = processor(images=image2, return_tensors="pt").to(device)
     image_features2 = model.get_image_features(**inputs2)
