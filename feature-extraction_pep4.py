@@ -12,8 +12,8 @@ processor_clip = AutoProcessor.from_pretrained("openai/clip-vit-base-patch32")
 model_clip = CLIPModel.from_pretrained("openai/clip-vit-base-patch32").to(device)
 
 # Load DINOv2 model and processor
-processor_dino = AutoImageProcessor.from_pretrained('facebook/dinov2-base')
-model_dino = AutoModel.from_pretrained('facebook/dinov2-base').to(device)
+# processor_dino = AutoImageProcessor.from_pretrained('facebook/dinov2-base')
+# model_dino = AutoModel.from_pretrained('facebook/dinov2-base').to(device)
 
 # Retrieve all filenames
 images = []
@@ -42,26 +42,26 @@ def extract_features_clip(image):
         return image_features
 
 
-def extract_features_dino(image):
-    with torch.no_grad():
-        inputs = processor_dino(images=image, return_tensors="pt").to(device)
-        outputs = model_dino(**inputs)
-        image_features = outputs.last_hidden_state
-        return image_features.mean(dim=1)
+# def extract_features_dino(image):
+#    with torch.no_grad():
+#        inputs = processor_dino(images=image, return_tensors="pt").to(device)
+#        outputs = model_dino(**inputs)
+#        image_features = outputs.last_hidden_state
+#        return image_features.mean(dim=1)
 
 
 # Create 2 indexes.
 index_clip = faiss.IndexFlatL2(512)
-index_dino = faiss.IndexFlatL2(768)
+# index_dino = faiss.IndexFlatL2(768)
 
 # Iterate over the dataset to extract features X2 and store features in indexes
 for image_path in images:
     img = Image.open(image_path).convert('RGB')
     clip_features = extract_features_clip(img)
     add_vector_to_index(clip_features, index_clip)
-    dino_features = extract_features_dino(img)
-    add_vector_to_index(dino_features, index_dino)
+    # dino_features = extract_features_dino(img)
+    # add_vector_to_index(dino_features, index_dino)
 
 # store the indexes locally
 faiss.write_index(index_clip, "clip.index")
-faiss.write_index(index_dino, "dino.index")
+# faiss.write_index(index_dino, "dino.index")
