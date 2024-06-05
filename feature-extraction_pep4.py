@@ -12,19 +12,9 @@ device = torch.device('cuda' if torch.cuda.is_available() else "cpu")
 processor_clip = AutoProcessor.from_pretrained("openai/clip-vit-base-patch32")
 model_clip = CLIPModel.from_pretrained("openai/clip-vit-base-patch32").to(device)
 
-# initialize table for extracted features 
-feature_table = pd.DataFrame()
-
 # Load DINOv2 model and processor
-# processor_dino = AutoImageProcessor.from_pretrained('facebook/dinov2-base')
-# model_dino = AutoModel.from_pretrained('facebook/dinov2-base').to(device)
-
-# Retrieve all filenames
-images = []
-for root, dirs, files in os.walk('./own/'):
-    for file in files:
-        if file.endswith('png'):
-            images.append(root + '/' + file)
+processor_dino = AutoImageProcessor.from_pretrained('facebook/dinov2-base')
+model_dino = AutoModel.from_pretrained('facebook/dinov2-base').to(device)
 
 
 # Define a function that normalizes embeddings and add them to the index
@@ -46,35 +36,60 @@ def extract_features_clip(image):
         return image_features
 
 
-# def extract_features_dino(image):
-#    with torch.no_grad():
-#        inputs = processor_dino(images=image, return_tensors="pt").to(device)
-#        outputs = model_dino(**inputs)
-#        image_features = outputs.last_hidden_state
-#        return image_features.mean(dim=1)
+def extract_features_dino(image):
+    with torch.no_grad():
+        inputs = processor_dino(images=image, return_tensors="pt").to(device)
+        outputs = model_dino(**inputs)
+        image_features = outputs.last_hidden_state
+        return image_features.mean(dim=1)
 
 
-# Create 2 indexes.
-index_clip = faiss.IndexFlatL2(512)
-# index_dino = faiss.IndexFlatL2(768)
+# initialize images types 
+image_types = ["own", "control"]
 
-# Iterate over the dataset to extract features X2 and store features in indexes
-for image_path in images:
-    img = Image.open(image_path).convert('L')
-    clip_features = extract_features_clip(img)
-    # store in table
-    filename = os.path.basename(image_path)
-    filename = os.path.splitext(filename)[0]
-    feature_table[filename] = clip_features[0]
-    print('Extracted features for', filename)
-    # add to index
-    add_vector_to_index(clip_features, index_clip)
-    # dino_features = extract_features_dino(img)
-    # add_vector_to_index(dino_features, index_dino)
+# loop through images types
+for image_type in image_types:
 
-# Save the DataFrame to a CSV file
-feature_table.to_csv("feature_table.csv", index=False)
+    # initialize table for extracted features 
+    feature_table_clip = pd.DataFrame()
+    feature_table_dino = pd.DataFrame()
 
-# store the indexes locally
-faiss.write_index(index_clip, "clip.index")
-# faiss.write_index(index_dino, "dino.index")
+    # Retrieve all filenames
+    images = []
+    for root, dirs, files in os.walk('./' + image_type + '/'):
+        for file in files:
+            if file.endswith('jpg'):
+                images.append(root + '/' + file)
+    print('Loaded images for ', image_type)
+
+    # Create 2 indexes.
+    # index_clip = faiss.IndexFlatL2(512)
+    # index_dino = faiss.IndexFlatL2(768)
+
+    # Iterate over the dataset to extract features X2 and store features in indexes
+    for image_path in images:
+        img = Image.open(image_path).convert('L')
+        clip_features = extract_features_clip(img)
+        dino_features = extract_features_dino(img)
+        # store in table
+        filename = os.path.basename(image_path)
+        filename = os.path.splitext(filename)[0]
+        feature_table_clip[filename] = clip_features[0]
+        feature_table_dino[filename] = dino_features[0]
+        # add to index
+        # add_vector_to_index(clip_features, index_clip)
+        # add_vector_to_index(dino_features, index_dino)
+        print('Extracted features for', filename)
+
+    # Save the DataFrame to a CSV file
+    clip_save_name = image_type + "_feature_table_clip.csv"
+    feature_table_clip.to_csv(clip_save_name, index=False)
+    dino_save_name = image_type + "_feature_table_dino.csv"
+    feature_table_dino.to_csv(dino_save_name, index=False)
+
+    # store the indexes locally
+    # faiss.write_index(index_clip, "clip.index")
+    # faiss.write_index(index_dino, "dino.index")
+
+    
+ws s3 sync --dryrun s3://natural-scenes-dataset/nsddata_stimuli/stimuli/nsdimagery C:/Users/JLU-SU/OneDrive - Justus-Liebig-Universität Gießen/PEP --exclude "*func1mm*" --exclude "*MNI*" --exclude "*betas_assumehrf*" --exclude "*betas_fithrf_GLMdenoise_RR*" --exclude "*betas*session*nii.gz"
